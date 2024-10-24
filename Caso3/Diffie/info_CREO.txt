@@ -1,0 +1,18 @@
+This is going to take a long time
+.................+..........................++*++*++*++*++*
+    DH Parameters: (1024 bit)
+        prime:
+            00:ec:e5:0f:f1:d9:6e:d0:0d:66:0b:91:23:2c:89:
+            b1:27:d6:f4:f0:74:ec:ef:67:e1:43:52:20:09:ae:
+            78:cf:c7:98:f9:85:d5:c1:0f:be:b5:29:35:cb:43:
+            b4:08:3f:29:d2:00:ef:a4:e9:d2:08:9d:2c:86:4e:
+            8e:7a:f4:b6:f6:b2:fc:f1:7a:32:12:4d:68:25:4b:
+            8c:06:8b:e6:fc:24:9d:d7:7c:82:b9:97:24:9a:d8:
+            fd:5e:cc:70:34:2d:0d:d0:75:d8:b2:00:19:21:96:
+            dc:c7:29:2f:67:54:9a:5c:1f:42:51:60:57:a5:35:
+            85:4d:2f:26:48:2c:7c:26:23
+        generator: 2 (0x2)
+-----BEGIN DH PARAMETERS-----
+MIGHAoGBAOzlD/HZbtANZguRIyyJsSfW9PB07O9n4UNSIAmueM/HmPmF1cEPvrUp
+NctDtAg/KdIA76Tp0gidLIZOjnr0tvay/PF6MhJNaCVLjAaL5vwkndd8grmXJJrY
+/V7McDQtDdB12LIAGSGW3McpL2dUmlwfQlFgV6U1hU0vJkgsfCYjAgEC
