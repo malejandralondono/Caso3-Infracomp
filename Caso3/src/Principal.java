@@ -16,6 +16,9 @@ public class Principal {
                 servidor.genASMKeys();
                 System.out.println("Funciona!");
             }
+            else if (resp.equals("2")){
+                
+            }
         }
     }
 }
