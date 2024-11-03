@@ -1,42 +1,53 @@
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.*;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
+import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.crypto.*;
-public class Servidor {
+public class Servidor extends Thread {
     
     public static final int PUERTO = 3400;
+    String ruta;
+    String P;
+    String G;
+    BigInteger Pnum;
+    BigInteger Gnum;
+    Random rand = new Random();
+    public Servidor(String ruta) throws Exception{
+        this.ruta = ruta;
+    }
 
-    //public void comenzar() throws IOException{
-    public static void main(String[] args) throws IOException {    
+    
+    @Override
+    public void run(){   
+        try{       
         ServerSocket ss = null;
         boolean continuar = true;
         PrivateKey llave_priv = getPrivateKey();
-        Cipher decifrador;
-     
-        try{
-            ss = new ServerSocket(PUERTO);
-            
-        }catch (Exception e){
-            e.printStackTrace();
-            System.exit(-1);
-        }
-        System.out.println("iniciado correctamente");
+        Cipher descifrador;
+        Cipher encifrador;
+        ss = new ServerSocket(PUERTO);
+        
+        System.out.println("servidor iniciado correctamente");
         while (continuar){
             Socket socket = ss.accept();
             try{
-                decifrador = Cipher.getInstance("RSA");
-                decifrador.init(Cipher.DECRYPT_MODE, llave_priv);
+                generarP_G();
+                descifrador = Cipher.getInstance("RSA");
+                descifrador.init(Cipher.DECRYPT_MODE, llave_priv);
+                encifrador = Cipher.getInstance("RSA");
+                encifrador.init(Cipher.ENCRYPT_MODE, llave_priv);
                 PrintWriter escritor = new PrintWriter(socket.getOutputStream(), true);
 				BufferedReader lector = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 				//Si recibe algo será guardado en el string recibido con lector.readline
@@ -47,10 +58,43 @@ public class Servidor {
                 byte [] byteReto = Base64.getDecoder().decode(retoRecibido);
 
                 //Paso 3
-                byte[] decryptedMessageBytes = decifrador.doFinal(byteReto);
+                byte[] decryptedMessageBytes = descifrador.doFinal(byteReto);
                 String descifradoStr = new String(decryptedMessageBytes, "UTF-8");
                 //Paso 4
                 escritor.println(descifradoStr);
+
+                //DIFFIE HELMAN
+                String Ok1 = lector.readLine();
+                if (Ok1.equals("ERROR")){
+                    System.exit(-1);
+                }
+                //Paso 8
+                escritor.println(Gnum.toString());
+                escritor.println(Pnum.toString());
+                SecureRandom rand = new SecureRandom();
+                BigInteger x = new BigInteger(Pnum.bitLength() - 1, rand);
+                //AHHHH!
+                BigInteger Gx = Gnum.modPow(x, Pnum);
+                String GxString = Gx.toString();
+                escritor.println(GxString);
+
+                //Crear la firma
+
+                Signature firmita;
+                firmita = Signature.getInstance("SHA1withRSA");
+                firmita.initSign(llave_priv);
+                firmita.update(Gnum.toByteArray());
+                firmita.update(Pnum.toByteArray());
+                firmita.update(Gx.toByteArray());
+                byte[] firmaReal = firmita.sign();
+                //Mandar la firma
+                escritor.println(Base64.getEncoder().encodeToString(firmaReal));
+
+                String Ok2 = lector.readLine();
+                if (Ok2.equals("ERROR")){
+                    System.exit(-1);
+                }
+
 
 				socket.close();
 				escritor.close();
@@ -61,32 +105,12 @@ public class Servidor {
             
         }
         ss.close();
+        }catch (Exception e){
+            e.printStackTrace();
+            System.exit(-1);
+        }
     }
 
-    public void genASMKeys () throws NoSuchAlgorithmException{
-        KeyPairGenerator gen = KeyPairGenerator.getInstance("RSA");
-        gen.initialize(1024);
-        KeyPair keyPair = gen.generateKeyPair();
-        PrivateKey privadaKey = keyPair.getPrivate();
-        PublicKey publicaKey = keyPair.getPublic();
-        String prvkeystr = Base64.getEncoder().encodeToString(privadaKey.getEncoded());
-        String pubkeystr = Base64.getEncoder().encodeToString(publicaKey.getEncoded());
-        try {
-            FileWriter archivoPRIV = new FileWriter("Caso3/llave_privada/llave_priv.txt");
-            archivoPRIV.write(prvkeystr);
-            archivoPRIV.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        try {
-            FileWriter archivoPUB = new FileWriter("Caso3/llave_publica/llave_pub.txt");
-            archivoPUB.write(pubkeystr);
-            archivoPUB.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-    }
 
     public static PublicKey getPublicKey() throws FileNotFoundException {
         FileReader fr = new FileReader("llave_publica/llave_pub.txt");
@@ -106,7 +130,7 @@ public class Servidor {
     }
 
     public static PrivateKey getPrivateKey() throws FileNotFoundException {
-        FileReader fr = new FileReader("llave_privada/llave_priv.txt");
+        FileReader fr = new FileReader("Caso3/llave_privada/llave_priv.txt");
         BufferedReader br = new BufferedReader(fr);
         PrivateKey prvKey = null;
         try {
@@ -120,6 +144,34 @@ public class Servidor {
         ex.printStackTrace();
         }
         return prvKey;
+    }
+    public void generarP_G ()throws Exception{
+        Process process = Runtime.getRuntime().exec(ruta+"\\openssl dhparam -text 1024");
+        // Leer la salida del commando
+        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+	    String line;
+	    StringBuilder output = new StringBuilder();
+	    // Almacena toda la salida para procesarla después
+	     while ((line = reader.readLine()) != null) {
+	                output.append(line).append("\n");
+	      }
+	    reader.close();
+        process.waitFor();
+        String outputText = output.toString();
+        Pattern primePattern = Pattern.compile("prime:\\s+([\\s\\S]+?)generator:");
+        Pattern generatorPattern = Pattern.compile("generator:\\s+(\\d+)");
+        Matcher primeMatcher = primePattern.matcher(outputText);
+        if (primeMatcher.find()) {
+            this.P = primeMatcher.group(1).replaceAll("\\s+", "");
+        }
+        Matcher generatorMatcher = generatorPattern.matcher(outputText);
+        if (generatorMatcher.find()) {
+            this.G = generatorMatcher.group(1);
+        }
+        String P_Hexa = this.P.replace(":", "").replaceAll("\\s", "");
+        this.Pnum = new BigInteger(P_Hexa, 16);
+        this.Gnum =new BigInteger(G);
+
     }
     
 
