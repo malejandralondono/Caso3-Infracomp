@@ -6,6 +6,7 @@ import java.io.PrintWriter;
 import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
@@ -25,19 +26,27 @@ public class Servidor extends Thread {
     String ruta;
     String P;
     String G;
+    private static boolean continuar=true;
     BigInteger Pnum;
+    
     BigInteger Gnum;
     Random rand = new Random();
     private int cantConsultas;
-    private static HashMap<String[],String> tablaPaquetes = new HashMap<>();
-    public Servidor(String ruta, HashMap<String[],String> tablaPaquetes, int cantConsultas) throws Exception{
+    private static HashMap<String,String> tablaPaquetes = new HashMap<>();
+    
+    public static HashMap<String, String> getTablaPaquetes() {
+        return tablaPaquetes;
+    }
+
+
+    public Servidor(String ruta, HashMap<String,String> tablaPaquetes, int cantConsultas) throws Exception{
         this.ruta = ruta;
         setTablaPaquetes(tablaPaquetes);
         this.cantConsultas = cantConsultas;
     }
 
     
-    public static void setTablaPaquetes(HashMap<String[], String> tablaPaquetes) {
+    public static void setTablaPaquetes(HashMap<String, String> tablaPaquetes) {
         Servidor.tablaPaquetes = tablaPaquetes;
     }
 
@@ -46,15 +55,64 @@ public class Servidor extends Thread {
     public void run(){   
         try{       
         ServerSocket ss = null;
-        boolean continuar = true;
-        PrivateKey llave_priv = getPrivateKey();
-        Cipher descifrador;
-        Cipher encifrador;
         ss = new ServerSocket(PUERTO);
         
         System.out.println("servidor iniciado correctamente");
         while (continuar){
             Socket socket = ss.accept();
+            Socket clientSocket = ss.accept();
+            System.out.println("Nuevo cliente conectado: " + clientSocket.getInetAddress());
+            
+            ManejadorCliente clientela = new ManejadorCliente(ruta, cantConsultas, socket);
+            clientela.start();
+        }
+        ss.close();
+        }catch (Exception e){
+            e.printStackTrace();
+            System.exit(-1);
+        }
+    }
+    public static void setContinuar(boolean cont) {
+        continuar = cont;
+    }
+    
+
+
+}
+
+class ManejadorCliente extends Thread {
+    
+    String ruta;
+    String P;
+    String G;
+    private static boolean continuar=true;
+    BigInteger Pnum;
+    Socket cliente;
+    BigInteger Gnum;
+    Cipher descifrador;
+    Cipher encifrador;
+    Random rand = new Random();
+    private int cantConsultas;
+    private static HashMap<String,String> tablaPaquetes = Servidor.getTablaPaquetes();
+    public ManejadorCliente(String ruta, int cantConsultas, Socket cliente) throws Exception{
+        this.ruta = ruta;
+        this.cantConsultas = cantConsultas;
+        this.cliente = cliente;
+    }
+
+    
+    public static void setTablaPaquetes(HashMap<String, String> tablaPaquetes) {
+        ManejadorCliente.tablaPaquetes = tablaPaquetes;
+    }
+
+
+    @Override
+    public void run(){   
+        try{       
+        ServerSocket ss = null;
+        PrivateKey llave_priv = getPrivateKey();
+        
+        
             try{
                 generarP_G();
                 descifrador = Cipher.getInstance("RSA");
@@ -152,31 +210,52 @@ public class Servidor extends Thread {
                     String usuario = "";
                     String paquete = "";
                     String solicitudusuario = lector.readLine();
-                    System.out.println(Base64.getEncoder().encodeToString(iv));
+                    
+                    byte[] temp = Base64.getDecoder().decode(solicitudusuario);
+                    byte[] usrbits = simetricoDesCifrado.doFinal(temp);
                     String hmacusuario = lector.readLine();
-                    byte[] usrbits = simetricoDesCifrado.doFinal(Base64.getDecoder().decode(solicitudusuario));
                     byte[] hmacusuariobyte = mac.doFinal(usrbits);
-                    if (!hmacusuariobyte.equals(Base64.getDecoder().decode(hmacusuario))) todobien=false;
+                    String comp1A = new String(hmacusuariobyte, StandardCharsets.UTF_8);
+                    String comp1B =  new String(Base64.getDecoder().decode(hmacusuario), StandardCharsets.UTF_8);
+                    if (!comp1A.equals(comp1B)) {
+                        System.out.println("falla acá en el 1");
+                        todobien=false;
+                    }
                     else{
-                        usuario = Base64.getEncoder().encodeToString(usrbits);
+                        usuario = new String(usrbits, "UTF-8");
                         System.out.println("Primer check de hmac done");
                     }
                     String solicitudpaquete= lector.readLine();
-                    String hmacpaquete = lector.readLine();
+                    
                     byte[] packidBits = simetricoDesCifrado.doFinal(Base64.getDecoder().decode(solicitudpaquete));
-                    byte[] hmacpaqbyte = mac.doFinal(Base64.getDecoder().decode(hmacpaquete));
-                    if (!mac.doFinal(packidBits).equals(hmacpaqbyte)) todobien=false;
+
+                    String hmacpaquete = lector.readLine();
+                    byte[] hmacpaqbyte =mac.doFinal(packidBits);
+                    String comp2A = new String(hmacpaqbyte, StandardCharsets.UTF_8);
+                    String comp2B =  new String(Base64.getDecoder().decode(hmacpaquete), StandardCharsets.UTF_8);
+
+                    if (!comp2A.equals(comp2B)) {
+                        System.out.println("falla acá en el 2");
+                        todobien=false;
+                    }
                     else{
-                        paquete = Base64.getEncoder().encodeToString(packidBits);
+                        paquete = new String(packidBits, "UTF-8");
                         System.out.println("Segundo check de hmac done");
                     }
-                    String[] acceso = {usuario,paquete};
-                    if (todobien) System.out.println(tablaPaquetes.get(acceso));
-                    else System.out.println("caramba");
+                    String acceso = usuario+","+paquete;
+                    String estadoStr = tablaPaquetes.get(acceso);
+                    if (estadoStr==null) estadoStr="DESCONOCIDO";
+
+                    byte[] estado = estadoStr.getBytes("UTF-8");
+                    byte[] estadocifrado = simetricoCifrado.doFinal(estado);
+                    escritor.println(Base64.getEncoder().encodeToString(estadocifrado));
+                    if (!todobien) System.out.println("caramba");
 
 
                 }
-
+                String finalizacion = lector.readLine();
+                if (!finalizacion.equals("TERMINAR")) System.out.println("no se finalizó la conexión");
+                else System.out.println("Conexión finalizada");
 
 				socket.close();
 				escritor.close();
@@ -254,6 +333,10 @@ public class Servidor extends Thread {
         this.Pnum = new BigInteger(P_Hexa, 16);
         this.Gnum =new BigInteger(G);
 
+    }
+
+    public static void setContinuar(boolean cont) {
+        continuar = cont;
     }
     
 

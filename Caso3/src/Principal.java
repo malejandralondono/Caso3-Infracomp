@@ -14,8 +14,8 @@ import java.util.HashMap;
 
 public class Principal {
     static boolean runtime= true;
-    static HashMap<String[],String> tablaPaquetes = new HashMap<>();
-    static ArrayList<String[]> listaUsuarios = new ArrayList<>();
+    static HashMap<String,String> tablaPaquetes = new HashMap<>();
+    static ArrayList<String> listaUsuarios = new ArrayList<>();
 
     public static void main(String[] args) throws Exception{
         //Cargar la tabla y la lista de usuarios
@@ -24,7 +24,8 @@ public class Principal {
         String info = lectorpaquetes.readLine();
         while (info != null){
             String[] infosep = info.split(",");
-            String[] infousuarios = {infosep[0],infosep[1]};
+            String infousuarios = infosep[0]+","+infosep[1];
+            
             listaUsuarios.add(infousuarios);
             tablaPaquetes.put(infousuarios, infosep[2]);
             info = lectorpaquetes.readLine();
@@ -64,11 +65,15 @@ public class Principal {
                     servidor.start();
                 }
                 Thread.sleep(50);
-                
+                Cliente[] clientes = new Cliente[cant_clientes];
                 for (int j=0; j<cant_clientes;j++){
-                    Cliente servidor = new Cliente(j,listaUsuarios,cantConsultas);
-                    servidor.start();
+                    clientes[j] = new Cliente(j,listaUsuarios,cantConsultas);   
+                    clientes[j].start();
                 }
+                for (int w=0; w<cant_clientes;w++){
+                    clientes[w].join();
+                }
+                Servidor.setContinuar(false);
             }
         }
     }

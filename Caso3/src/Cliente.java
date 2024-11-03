@@ -28,9 +28,9 @@ public class Cliente extends Thread{
 	public static final String SERVIDOR = "localhost";
     public static Random rnd = new Random();
     public int num;
-    private ArrayList<String[]> listaUsuarios;
+    private ArrayList<String> listaUsuarios;
     private int cantConsultas;
-    public Cliente(int numID, ArrayList<String[]> listaUsuarios, int cantConsultas){
+    public Cliente(int numID, ArrayList<String> listaUsuarios, int cantConsultas){
         this.num = numID;
         this.listaUsuarios = listaUsuarios;
         this.cantConsultas = cantConsultas;
@@ -148,33 +148,34 @@ public class Cliente extends Thread{
 
 
             for (int c=0; c<cantConsultas;c++){
+                System.out.println("SOLICITUD NUMERO: "+(c+1));
                 int num_usuario = rnd.nextInt(listaUsuarios.size()-1);
-                String[] infor = listaUsuarios.get(num_usuario);
+                String infor_inc = listaUsuarios.get(num_usuario);
+                String[] infor = infor_inc.split(",");
                 //Paso 13
                 byte[] usrbits = infor[0].getBytes("UTF-8");
-
-                byte[] usrCifrado = encryptCipher.doFinal(usrbits);
+                byte[] usrCifrado = simetricoCifrado.doFinal(usrbits);
                 escritor.println(Base64.getEncoder().encodeToString(usrCifrado));
-                System.out.println(Base64.getEncoder().encodeToString(iv));
-                //System.out.println(Base64.getEncoder().encodeToString(usrCifrado));
-                byte[] hmacCifrado = mac.doFinal(usrCifrado);
+                byte[] hmacCifrado = mac.doFinal(usrbits);
                 escritor.println(Base64.getEncoder().encodeToString(hmacCifrado));
+             
 
                 //Paso 14
                 byte[] packidBits = infor[1].getBytes("UTF-8");
-                byte[] paqCifrado = encryptCipher.doFinal(packidBits);
+                byte[] paqCifrado = simetricoCifrado.doFinal(packidBits);
                 escritor.println(Base64.getEncoder().encodeToString(paqCifrado));
                 byte[] hmacpaqCifrado = mac.doFinal(packidBits);
                 escritor.println(Base64.getEncoder().encodeToString(hmacpaqCifrado));
                 //Paso 15
                 String respuesta = lector.readLine();
                 byte[] respuestaBytes = Base64.getDecoder().decode(respuesta);
-                byte[] respuestaDesc = decryptCipher.doFinal(respuestaBytes);
-                String respReal = Base64.getEncoder().encodeToString(respuestaDesc);
+                byte[] respuestaDesc = simetricoDesCifrado.doFinal(respuestaBytes);
+                String respReal =  new String(respuestaDesc, "UTF-8");
                 if (!respReal.equals("DESCONOCIDO")){
                     System.out.println("Se preguntó por "+infor[0]+" con el paquete "+infor[1]+" y se recibió que "+respReal);
                 }
             }
+            escritor.println("TERMINAR");
             
             socket.close();
             escritor.close();
