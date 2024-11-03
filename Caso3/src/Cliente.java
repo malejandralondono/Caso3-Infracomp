@@ -53,13 +53,14 @@ public class Cliente extends Thread{
             decryptCipher.init(Cipher.DECRYPT_MODE, llave_pub);
 
             String retoStr = reto.toString();
-            System.out.println("String que debería aparecer: "+retoStr);
+            //System.out.println("String que debería aparecer: "+retoStr);
             byte[] retoPLAINTEXTbits = retoStr.getBytes("UTF-8");
             //Paso 2a
             byte[] retoCifrado = encryptCipher.doFinal(retoPLAINTEXTbits);
 
             //Comunicación con el servidor
             socket = new Socket(SERVIDOR, PUERTO);
+            System.out.println("mandando solicitud al servidor");
             escritor = new PrintWriter(socket.getOutputStream(), true);
             lector = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         
@@ -69,9 +70,6 @@ public class Cliente extends Thread{
             //Paso 5
             String rta = lector.readLine();
           
-
-            System.out.println("retostr: "+retoStr);
-            System.out.println("rta: "+rta);
 
             //Paso 6
             if (retoStr.equals(rta)) {

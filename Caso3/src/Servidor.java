@@ -24,13 +24,8 @@ public class Servidor extends Thread {
     
     public static final int PUERTO = 3400;
     String ruta;
-    String P;
-    String G;
-    private static boolean continuar=true;
-    BigInteger Pnum;
+    public static boolean continuar=true;
     
-    BigInteger Gnum;
-    Random rand = new Random();
     private int cantConsultas;
     private static HashMap<String,String> tablaPaquetes = new HashMap<>();
     
@@ -59,11 +54,10 @@ public class Servidor extends Thread {
         
         System.out.println("servidor iniciado correctamente");
         while (continuar){
-            Socket socket = ss.accept();
             Socket clientSocket = ss.accept();
             System.out.println("Nuevo cliente conectado: " + clientSocket.getInetAddress());
             
-            ManejadorCliente clientela = new ManejadorCliente(ruta, cantConsultas, socket);
+            ManejadorCliente clientela = new ManejadorCliente(ruta, cantConsultas, clientSocket);
             clientela.start();
         }
         ss.close();
@@ -85,7 +79,7 @@ class ManejadorCliente extends Thread {
     String ruta;
     String P;
     String G;
-    private static boolean continuar=true;
+
     BigInteger Pnum;
     Socket cliente;
     BigInteger Gnum;
@@ -108,164 +102,157 @@ class ManejadorCliente extends Thread {
 
     @Override
     public void run(){   
-        try{       
-        ServerSocket ss = null;
+        try{      
+        System.out.println("entramos");
         PrivateKey llave_priv = getPrivateKey();
-        
-        
-            try{
-                generarP_G();
-                descifrador = Cipher.getInstance("RSA");
-                descifrador.init(Cipher.DECRYPT_MODE, llave_priv);
-                encifrador = Cipher.getInstance("RSA");
-                encifrador.init(Cipher.ENCRYPT_MODE, llave_priv);
-                PrintWriter escritor = new PrintWriter(socket.getOutputStream(), true);
-				BufferedReader lector = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-				//Si recibe algo será guardado en el string recibido con lector.readline
-                //String recibido = lector.readLine();
-				//Si quiere enviar por la red algo lo hará con escrito.println
-				//escritor.println("Hola cliente");
-				String retoRecibido = lector.readLine();
-                byte [] byteReto = Base64.getDecoder().decode(retoRecibido);
+        generarP_G();
+        descifrador = Cipher.getInstance("RSA");
+        descifrador.init(Cipher.DECRYPT_MODE, llave_priv);
+        encifrador = Cipher.getInstance("RSA");
+        encifrador.init(Cipher.ENCRYPT_MODE, llave_priv);
+        PrintWriter escritor = new PrintWriter(cliente.getOutputStream(), true);
+        BufferedReader lector = new BufferedReader(new InputStreamReader(cliente.getInputStream()));
+        //Si recibe algo será guardado en el string recibido con lector.readline
+        //String recibido = lector.readLine();
+        //Si quiere enviar por la red algo lo hará con escrito.println
+        //escritor.println("Hola cliente");
+        String retoRecibido = lector.readLine();
+        byte [] byteReto = Base64.getDecoder().decode(retoRecibido);
 
-                //Paso 3
-                byte[] decryptedMessageBytes = descifrador.doFinal(byteReto);
-                String descifradoStr = new String(decryptedMessageBytes, "UTF-8");
-                //Paso 4
-                escritor.println(descifradoStr);
+        //Paso 3
+        byte[] decryptedMessageBytes = descifrador.doFinal(byteReto);
+        String descifradoStr = new String(decryptedMessageBytes, "UTF-8");
+        //Paso 4
+        escritor.println(descifradoStr);
 
-                //DIFFIE HELMAN
-                String Ok1 = lector.readLine();
-                if (Ok1.equals("ERROR")){
-                    System.exit(-1);
-                }
-                //Paso 8
-                escritor.println(Gnum.toString());
-                escritor.println(Pnum.toString());
-                SecureRandom rand = new SecureRandom();
-                BigInteger x = new BigInteger(Pnum.bitLength() - 1, rand);
-                //AHHHH!
-                BigInteger Gx = Gnum.modPow(x, Pnum);
-                String GxString = Gx.toString();
-                escritor.println(GxString);
-
-                //Crear la firma
-
-                Signature firmita;
-                firmita = Signature.getInstance("SHA1withRSA");
-                firmita.initSign(llave_priv);
-                firmita.update(Gnum.toByteArray());
-                firmita.update(Pnum.toByteArray());
-                firmita.update(Gx.toByteArray());
-                byte[] firmaReal = firmita.sign();
-                //Mandar la firma
-                escritor.println(Base64.getEncoder().encodeToString(firmaReal));
-
-                String Ok2 = lector.readLine();
-                if (Ok2.equals("ERROR")){
-                    System.exit(-1);
-                }
-
-                String Gystring = lector.readLine();
-                BigInteger Gynum = new BigInteger(Gystring);
-                 //Llave simetrica yay
-                BigInteger llave = Gynum.modPow(x, Pnum);
-                
-                //String llaveCliente = lector.readLine();
-                //if (llaveCliente.equals(llave.toString())) System.out.println("Funciona diffie yay");
-
-                MessageDigest md = MessageDigest.getInstance("SHA-512"); 
-                byte[] digestbien = md.digest(llave.toByteArray());
-                byte[] llave_pa_cifrar = Arrays.copyOfRange(digestbien, 0, 32);
-                byte[] llave_pa_MAC = Arrays.copyOfRange(digestbien, 32, 64);
-
-                SecretKey llaveSimetrica_cifrar = new SecretKeySpec(llave_pa_cifrar, "AES");
-                
-                //SecretKey llaveSimetrica_MAC = new SecretKeySpec(llave_pa_MAC, "AES");
-
-                //Generar el inicializador
-                byte[] iv = new byte[16];
-                rand.nextBytes(iv);
-                IvParameterSpec ivParameterSpec  = new IvParameterSpec(iv);
-
-                //Paso 12 enviar el inicializador
-                escritor.println(Base64.getEncoder().encodeToString(iv));
-                //System.out.println(Base64.getEncoder().encodeToString(iv));
-                //cirfador y descifrador
-                
-                Cipher simetricoCifrado = Cipher.getInstance("AES/CBC/PKCS5Padding");
-                simetricoCifrado.init(Cipher.ENCRYPT_MODE, llaveSimetrica_cifrar, ivParameterSpec);
-                Cipher simetricoDesCifrado = Cipher.getInstance("AES/CBC/PKCS5Padding");
-                simetricoDesCifrado.init(Cipher.DECRYPT_MODE, llaveSimetrica_cifrar, ivParameterSpec);
-
-                //Clase para revisar el hmac
-                Mac mac = Mac.getInstance("HmacSHA384");
-                SecretKey llavehmac = new SecretKeySpec(llave_pa_MAC, "HmacSHA384");
-                mac.init(llavehmac);
-                
-
-
-                for (int c=0; c<cantConsultas;c++){
-                    boolean todobien = true;
-                    String usuario = "";
-                    String paquete = "";
-                    String solicitudusuario = lector.readLine();
-                    
-                    byte[] temp = Base64.getDecoder().decode(solicitudusuario);
-                    byte[] usrbits = simetricoDesCifrado.doFinal(temp);
-                    String hmacusuario = lector.readLine();
-                    byte[] hmacusuariobyte = mac.doFinal(usrbits);
-                    String comp1A = new String(hmacusuariobyte, StandardCharsets.UTF_8);
-                    String comp1B =  new String(Base64.getDecoder().decode(hmacusuario), StandardCharsets.UTF_8);
-                    if (!comp1A.equals(comp1B)) {
-                        System.out.println("falla acá en el 1");
-                        todobien=false;
-                    }
-                    else{
-                        usuario = new String(usrbits, "UTF-8");
-                        System.out.println("Primer check de hmac done");
-                    }
-                    String solicitudpaquete= lector.readLine();
-                    
-                    byte[] packidBits = simetricoDesCifrado.doFinal(Base64.getDecoder().decode(solicitudpaquete));
-
-                    String hmacpaquete = lector.readLine();
-                    byte[] hmacpaqbyte =mac.doFinal(packidBits);
-                    String comp2A = new String(hmacpaqbyte, StandardCharsets.UTF_8);
-                    String comp2B =  new String(Base64.getDecoder().decode(hmacpaquete), StandardCharsets.UTF_8);
-
-                    if (!comp2A.equals(comp2B)) {
-                        System.out.println("falla acá en el 2");
-                        todobien=false;
-                    }
-                    else{
-                        paquete = new String(packidBits, "UTF-8");
-                        System.out.println("Segundo check de hmac done");
-                    }
-                    String acceso = usuario+","+paquete;
-                    String estadoStr = tablaPaquetes.get(acceso);
-                    if (estadoStr==null) estadoStr="DESCONOCIDO";
-
-                    byte[] estado = estadoStr.getBytes("UTF-8");
-                    byte[] estadocifrado = simetricoCifrado.doFinal(estado);
-                    escritor.println(Base64.getEncoder().encodeToString(estadocifrado));
-                    if (!todobien) System.out.println("caramba");
-
-
-                }
-                String finalizacion = lector.readLine();
-                if (!finalizacion.equals("TERMINAR")) System.out.println("no se finalizó la conexión");
-                else System.out.println("Conexión finalizada");
-
-				socket.close();
-				escritor.close();
-				lector.close();
-            }catch( Exception e){
-                e.printStackTrace();
-            }
-            
+        //DIFFIE HELMAN
+        String Ok1 = lector.readLine();
+        if (Ok1.equals("ERROR")){
+            System.exit(-1);
         }
-        ss.close();
+        //Paso 8
+        escritor.println(Gnum.toString());
+        escritor.println(Pnum.toString());
+        SecureRandom rand = new SecureRandom();
+        BigInteger x = new BigInteger(Pnum.bitLength() - 1, rand);
+        //AHHHH!
+        BigInteger Gx = Gnum.modPow(x, Pnum);
+        String GxString = Gx.toString();
+        escritor.println(GxString);
+
+        //Crear la firma
+
+        Signature firmita;
+        firmita = Signature.getInstance("SHA1withRSA");
+        firmita.initSign(llave_priv);
+        firmita.update(Gnum.toByteArray());
+        firmita.update(Pnum.toByteArray());
+        firmita.update(Gx.toByteArray());
+        byte[] firmaReal = firmita.sign();
+        //Mandar la firma
+        escritor.println(Base64.getEncoder().encodeToString(firmaReal));
+
+        String Ok2 = lector.readLine();
+        if (Ok2.equals("ERROR")){
+            System.exit(-1);
+        }
+
+        String Gystring = lector.readLine();
+        BigInteger Gynum = new BigInteger(Gystring);
+            //Llave simetrica yay
+        BigInteger llave = Gynum.modPow(x, Pnum);
+        
+        //String llaveCliente = lector.readLine();
+        //if (llaveCliente.equals(llave.toString())) System.out.println("Funciona diffie yay");
+
+        MessageDigest md = MessageDigest.getInstance("SHA-512"); 
+        byte[] digestbien = md.digest(llave.toByteArray());
+        byte[] llave_pa_cifrar = Arrays.copyOfRange(digestbien, 0, 32);
+        byte[] llave_pa_MAC = Arrays.copyOfRange(digestbien, 32, 64);
+
+        SecretKey llaveSimetrica_cifrar = new SecretKeySpec(llave_pa_cifrar, "AES");
+        
+        //SecretKey llaveSimetrica_MAC = new SecretKeySpec(llave_pa_MAC, "AES");
+
+        //Generar el inicializador
+        byte[] iv = new byte[16];
+        rand.nextBytes(iv);
+        IvParameterSpec ivParameterSpec  = new IvParameterSpec(iv);
+
+        //Paso 12 enviar el inicializador
+        escritor.println(Base64.getEncoder().encodeToString(iv));
+        //System.out.println(Base64.getEncoder().encodeToString(iv));
+        //cirfador y descifrador
+        
+        Cipher simetricoCifrado = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        simetricoCifrado.init(Cipher.ENCRYPT_MODE, llaveSimetrica_cifrar, ivParameterSpec);
+        Cipher simetricoDesCifrado = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        simetricoDesCifrado.init(Cipher.DECRYPT_MODE, llaveSimetrica_cifrar, ivParameterSpec);
+
+        //Clase para revisar el hmac
+        Mac mac = Mac.getInstance("HmacSHA384");
+        SecretKey llavehmac = new SecretKeySpec(llave_pa_MAC, "HmacSHA384");
+        mac.init(llavehmac);
+        
+
+
+        for (int c=0; c<cantConsultas;c++){
+            boolean todobien = true;
+            String usuario = "";
+            String paquete = "";
+            String solicitudusuario = lector.readLine();
+            
+            byte[] temp = Base64.getDecoder().decode(solicitudusuario);
+            byte[] usrbits = simetricoDesCifrado.doFinal(temp);
+            String hmacusuario = lector.readLine();
+            byte[] hmacusuariobyte = mac.doFinal(usrbits);
+            String comp1A = new String(hmacusuariobyte, StandardCharsets.UTF_8);
+            String comp1B =  new String(Base64.getDecoder().decode(hmacusuario), StandardCharsets.UTF_8);
+            if (!comp1A.equals(comp1B)) {
+                System.out.println("falla acá en el 1");
+                todobien=false;
+            }
+            else{
+                usuario = new String(usrbits, "UTF-8");
+                System.out.println("Primer check de hmac done");
+            }
+            String solicitudpaquete= lector.readLine();
+            
+            byte[] packidBits = simetricoDesCifrado.doFinal(Base64.getDecoder().decode(solicitudpaquete));
+
+            String hmacpaquete = lector.readLine();
+            byte[] hmacpaqbyte =mac.doFinal(packidBits);
+            String comp2A = new String(hmacpaqbyte, StandardCharsets.UTF_8);
+            String comp2B =  new String(Base64.getDecoder().decode(hmacpaquete), StandardCharsets.UTF_8);
+
+            if (!comp2A.equals(comp2B)) {
+                System.out.println("falla acá en el 2");
+                todobien=false;
+            }
+            else{
+                paquete = new String(packidBits, "UTF-8");
+                System.out.println("Segundo check de hmac done");
+            }
+            String acceso = usuario+","+paquete;
+            String estadoStr = tablaPaquetes.get(acceso);
+            if (estadoStr==null) estadoStr="DESCONOCIDO";
+
+            byte[] estado = estadoStr.getBytes("UTF-8");
+            byte[] estadocifrado = simetricoCifrado.doFinal(estado);
+            escritor.println(Base64.getEncoder().encodeToString(estadocifrado));
+            if (!todobien) System.out.println("caramba");
+            }
+
+
+        
+        String finalizacion = lector.readLine();
+        if (!finalizacion.equals("TERMINAR")) System.out.println("no se finalizó la conexión");
+        else System.out.println("Conexión finalizada");
+
+        cliente.close();
+        escritor.close();
+        lector.close();            
+        
         }catch (Exception e){
             e.printStackTrace();
             System.exit(-1);
@@ -336,7 +323,7 @@ class ManejadorCliente extends Thread {
     }
 
     public static void setContinuar(boolean cont) {
-        continuar = cont;
+        Servidor.continuar = cont;
     }
     
 
