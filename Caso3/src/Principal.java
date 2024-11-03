@@ -52,18 +52,18 @@ public class Principal {
             }
             else if (resp.equals("2")){
                 
-                System.out.println("Indique el número de servidores concurrentes:");
-                int cant_serv = Integer.valueOf(reader.readLine());
+                /*System.out.println("Indique el número de servidores concurrentes:");
+                int cant_serv = Integer.valueOf(reader.readLine());*/
 
                 System.out.println("Indique el número de clientes concurrentes:");
                 int cant_clientes = Integer.valueOf(reader.readLine());
                 int cantConsultas = 1;
                 if (cant_clientes==1) cantConsultas=32;
 
-                for (int i=0; i<cant_serv;i++){
-                    Servidor servidor = new Servidor(ruta_openssl,tablaPaquetes,cantConsultas);
-                    servidor.start();
-                }
+                
+                Servidor servidor = new Servidor(ruta_openssl,tablaPaquetes,cantConsultas);
+                servidor.start();
+                
                 Thread.sleep(50);
                 Cliente[] clientes = new Cliente[cant_clientes];
                 for (int j=0; j<cant_clientes;j++){

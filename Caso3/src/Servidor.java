@@ -244,10 +244,10 @@ class ManejadorCliente extends Thread {
             }
 
 
-        
+        String num = lector.readLine();
         String finalizacion = lector.readLine();
         if (!finalizacion.equals("TERMINAR")) System.out.println("no se finalizó la conexión");
-        else System.out.println("Conexión finalizada");
+        else System.out.println("Conexión finalizada con el cliente" + num);
 
         cliente.close();
         escritor.close();

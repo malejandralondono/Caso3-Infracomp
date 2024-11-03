@@ -146,7 +146,7 @@ public class Cliente extends Thread{
 
 
             for (int c=0; c<cantConsultas;c++){
-                System.out.println("SOLICITUD NUMERO: "+(c+1));
+                System.out.println("SOLICITUD NUMERO: "+(c+1)+" del cliente "+ num);
                 int num_usuario = rnd.nextInt(listaUsuarios.size()-1);
                 String infor_inc = listaUsuarios.get(num_usuario);
                 String[] infor = infor_inc.split(",");
@@ -173,6 +173,8 @@ public class Cliente extends Thread{
                     System.out.println("Se preguntó por "+infor[0]+" con el paquete "+infor[1]+" y se recibió que "+respReal);
                 }
             }
+            escritor.println(String.valueOf(num));
+            System.out.println("TERMINAR");
             escritor.println("TERMINAR");
             
             socket.close();
