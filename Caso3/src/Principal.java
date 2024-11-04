@@ -40,7 +40,7 @@ public class Principal {
             System.out.println("Bienvenido al menú principal del caso 2. Selecciona una de las siguientes opciones:");
             System.out.println("1. Opción 1");
             System.out.println("2. Opción 2");
-            System.out.println("2. Opción 2 pero con el envío del estado del paquete por asimetrico");
+            System.out.println("3. Opción 2 pero con el envío del estado del paquete por asimetrico");
             System.out.println("4. Salir");
             
             String resp = reader.readLine();
