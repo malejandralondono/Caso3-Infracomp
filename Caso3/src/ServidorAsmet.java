@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
 import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-public class Servidor extends Thread {
+public class ServidorAsmet extends Thread {
     
     public static final int PUERTO = 3400;
     String ruta;
@@ -34,7 +34,7 @@ public class Servidor extends Thread {
     }
 
 
-    public Servidor(String ruta, HashMap<String,String> tablaPaquetes, int cantConsultas) throws Exception{
+    public ServidorAsmet(String ruta, HashMap<String,String> tablaPaquetes, int cantConsultas) throws Exception{
         this.ruta = ruta;
         setTablaPaquetes(tablaPaquetes);
         this.cantConsultas = cantConsultas;
@@ -42,7 +42,7 @@ public class Servidor extends Thread {
 
     
     public static void setTablaPaquetes(HashMap<String, String> tablaPaquetes) {
-        Servidor.tablaPaquetes = tablaPaquetes;
+        ServidorAsmet.tablaPaquetes = tablaPaquetes;
     }
 
 
@@ -75,7 +75,7 @@ public class Servidor extends Thread {
 
 }
 
-class ManejadorCliente extends Thread {
+class ManejadorClienteAsimet extends Thread {
     
     String ruta;
     String P;
@@ -89,7 +89,7 @@ class ManejadorCliente extends Thread {
     Random rand = new Random();
     private int cantConsultas;
     private static HashMap<String,String> tablaPaquetes = Servidor.getTablaPaquetes();
-    public ManejadorCliente(String ruta, int cantConsultas, Socket cliente) throws Exception{
+    public ManejadorClienteAsimet(String ruta, int cantConsultas, Socket cliente) throws Exception{
         this.ruta = ruta;
         this.cantConsultas = cantConsultas;
         this.cliente = cliente;
@@ -97,7 +97,7 @@ class ManejadorCliente extends Thread {
 
     
     public static void setTablaPaquetes(HashMap<String, String> tablaPaquetes) {
-        ManejadorCliente.tablaPaquetes = tablaPaquetes;
+        ManejadorClienteAsimet.tablaPaquetes = tablaPaquetes;
     }
 
 
@@ -132,7 +132,7 @@ class ManejadorCliente extends Thread {
             System.exit(-1);
         }
         //Paso 7
-        Tiempo tiempo_generador_Diffie = new Tiempo();
+        //Tiempo tiempo_generador_Diffie = new Tiempo();
         generarP_G();
         
         //Paso 8
@@ -144,7 +144,7 @@ class ManejadorCliente extends Thread {
         BigInteger Gx = Gnum.modPow(x, Pnum);
         String GxString = Gx.toString();
         escritor.println(GxString);
-        System.out.println("Tiempo que tomó generar G, P y G^x es de "+tiempo_generador_Diffie.getTiempo()+" ms");
+        //System.out.println("Tiempo que tomó generar G, P y G^x es de "+tiempo_generador_Diffie.getTiempo()+" ms");
 
         //Crear la firma
 
@@ -206,7 +206,7 @@ class ManejadorCliente extends Thread {
             boolean todobien = true;
             String usuario = "";
             String paquete = "";
-            Tiempo tiempo_verificar_consulta = new Tiempo();
+            //Tiempo tiempo_verificar_consulta = new Tiempo();
             String solicitudusuario = lector.readLine();
             
             byte[] temp = Base64.getDecoder().decode(solicitudusuario);
@@ -240,17 +240,23 @@ class ManejadorCliente extends Thread {
                 paquete = new String(packidBits, "UTF-8");
                 //System.out.println("Segundo check de hmac done");
             }
-            System.out.println("Tiempo que tomó verificar la consulta del cliente es de "+tiempo_verificar_consulta.getTiempoNs()+" ms");
+            //System.out.println("Tiempo que tomó verificar la consulta del cliente es de "+tiempo_verificar_consulta.getTiempoNs()+" ms");
             String acceso = usuario+","+paquete;
             //Si descifró bien todo, debería poder acceder a un dato del HashMap
             String estadoStr = tablaPaquetes.get(acceso);
             if (estadoStr==null) estadoStr="DESCONOCIDO";
+
             Tiempo tiempo_cifrado_sim = new Tiempo();
+            byte[] estadoASM = estadoStr.getBytes("UTF-8");
+            //Manda la respuesta cifrada con la simétrica
+            byte[] estadocifradoASM = encifrador.doFinal(estadoASM);
+            String estadoStrAsm = Base64.getEncoder().encodeToString(estadocifradoASM);
+            System.out.println("Tiempo que tomó cifrar asimetricamente el estado del paquete es de "+tiempo_cifrado_sim.getTiempoNs()+" ms");
             byte[] estado = estadoStr.getBytes("UTF-8");
             //Manda la respuesta cifrada con la simétrica
             byte[] estadocifrado = simetricoCifrado.doFinal(estado);
-            escritor.println(Base64.getEncoder().encodeToString(estadocifrado));
-            System.out.println("Tiempo que tomó cifrar el estado del paquete es de "+tiempo_cifrado_sim.getTiempoNs()+" ms");
+            escritor.println(Base64.getEncoder().encodeToString(estadocifrado));            
+            
             if (!todobien) System.out.println("caramba");
         }
 

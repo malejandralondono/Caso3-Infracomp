@@ -30,9 +30,6 @@ public class Principal {
             tablaPaquetes.put(infousuarios, infosep[2]);
             info = lectorpaquetes.readLine();
         }
-        /*for (String[] a: listaUsuarios){
-            System.out.println(a[0] +" "+ a[1] + " " + tablaPaquetes.get(a));
-        }*/
         lectorpaquetes.close();
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         System.out.println("Escriba la ruta completa de la ubicación de openssl:");
@@ -43,6 +40,7 @@ public class Principal {
             System.out.println("Bienvenido al menú principal del caso 2. Selecciona una de las siguientes opciones:");
             System.out.println("1. Opción 1");
             System.out.println("2. Opción 2");
+            System.out.println("2. Opción 2 pero con el envío del estado del paquete por asimetrico");
             System.out.println("4. Salir");
             
             String resp = reader.readLine();
@@ -52,9 +50,7 @@ public class Principal {
             }
             else if (resp.equals("2")){
                 
-                /*System.out.println("Indique el número de servidores concurrentes:");
-                int cant_serv = Integer.valueOf(reader.readLine());*/
-
+                Tiempo tiempoTOTAL = new Tiempo();
                 System.out.println("Indique el número de clientes concurrentes:");
                 int cant_clientes = Integer.valueOf(reader.readLine());
                 int cantConsultas = 1;
@@ -74,6 +70,35 @@ public class Principal {
                     clientes[w].join();
                 }
                 Servidor.setContinuar(false);
+                
+                System.out.println("Realizar todo el procedimiento tomó "+tiempoTOTAL.getTiempo()+" ms");
+            }
+            else if (resp.equals("3")){
+                Tiempo tiempoTOTALasm = new Tiempo();
+                System.out.println("Indique el número de clientes concurrentes:");
+                int cant_clientes = Integer.valueOf(reader.readLine());
+                int cantConsultas = 1;
+                if (cant_clientes==1) cantConsultas=32;
+
+                
+                ServidorAsmet servidor = new ServidorAsmet(ruta_openssl,tablaPaquetes,cantConsultas);
+                servidor.start();
+                
+                Thread.sleep(50);
+                ClienteAsmet[] clientes = new ClienteAsmet[cant_clientes];
+                for (int j=0; j<cant_clientes;j++){
+                    clientes[j] = new ClienteAsmet(j,listaUsuarios,cantConsultas);   
+                    clientes[j].start();
+                }
+                for (int w=0; w<cant_clientes;w++){
+                    clientes[w].join();
+                }
+                ServidorAsmet.setContinuar(false);
+                
+                System.out.println("Realizar todo el procedimiento tomó "+tiempoTOTALasm.getTiempo()+" ms");
+            }
+            else if (resp.equals("4")){
+                runtime = false;
             }
         }
     }
