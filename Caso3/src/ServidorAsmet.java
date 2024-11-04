@@ -250,7 +250,7 @@ class ManejadorClienteAsimet extends Thread {
             byte[] estadoASM = estadoStr.getBytes("UTF-8");
             //Manda la respuesta cifrada con la simétrica
             byte[] estadocifradoASM = encifrador.doFinal(estadoASM);
-            String estadoStrAsm = Base64.getEncoder().encodeToString(estadocifradoASM);
+            Base64.getEncoder().encodeToString(estadocifradoASM);
             System.out.println("Tiempo que tomó cifrar asimetricamente el estado del paquete es de "+tiempo_cifrado_sim.getTiempoNs()+" ms");
             byte[] estado = estadoStr.getBytes("UTF-8");
             //Manda la respuesta cifrada con la simétrica
