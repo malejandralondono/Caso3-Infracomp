@@ -34,8 +34,8 @@ public class Principal {
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         System.out.println("Escriba la ruta completa de la ubicación de openssl:");
         //C:\Users\57304\Documents\OpenSSL-1.1.1h_win32\OpenSSL-1.1.1h_win32
-        //String ruta_openssl = reader.readLine();
-        String ruta_openssl = "C:\\Users\\57304\\Documents\\OpenSSL-1.1.1h_win32\\OpenSSL-1.1.1h_win32";
+        String ruta_openssl = reader.readLine();
+        //String ruta_openssl = "C:\\Users\\57304\\Documents\\OpenSSL-1.1.1h_win32\\OpenSSL-1.1.1h_win32";
         while (runtime){
             System.out.println("Bienvenido al menú principal del caso 2. Selecciona una de las siguientes opciones:");
             System.out.println("1. Opción 1");
